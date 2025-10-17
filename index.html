@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shop mobile</title>
+  <link rel="stylesheet" href="style.css" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  />
+</head>
+<body>
+<!-- ================= Header ================= -->
+<header class="site-header">
+  <div class="container header-top">
+    <div class="logo">
+      <a href="index.html">
+        <img src="img/4.png" style="height:60px; vertical-align:middle;">
+        <span>shop mobile</span>
+      </a>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" placeholder="Tìm sản phẩm..." id="search-input">
+      <button><i class="fas fa-search"></i></button>
+    </div>
+
+    <div class="header-icons">
+      <a href="#"><i class="fas fa-phone"></i> 0123 456 789</a>
+      <a href="admin.html"><i class="fas fa-user"></i></a>
+      <a href="#"><i class="fas fa-heart"></i></a>
+      <a href="cart.html" class="cart">
+        <i class="fas fa-shopping-cart"></i>
+        <span class="cart-count">0</span>
+      </a>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <ul>
+      <li><a href="index.html"><i class="fas fa-home"></i> Trang chủ</a></li>
+      <li><a href="product.html"><i class="fas fa-box"></i> Sản phẩm</a></li>
+      <li><a href="#"><i class="fas fa-tags"></i> sản phẩm ct</a></li>
+      <li><a href="#"><i class="fas fa-newspaper"></i> Tin tức</a></li>
+      <li><a href="#"><i class="fas fa-envelope"></i> Liên hệ</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ================= Banner ================= -->
+<section class="hero-banner">
+  <div class="hero-text">
+    <h2>Chào mừng đến với Shop mobile</h2>
+    <p>Mua sắm tiện lợi – Giá tốt mỗi ngày!</p>
+    <a href="product.html" class="btn"><i class="fas fa-shopping-bag"></i> Mua ngay</a>
+  </div>
+</section>
+
+<!-- ================= Main Content ================= -->
+<main>
+  <h2>Sản phẩm nổi bật</h2>
+  <div id="hot" class="products-grid"></div>
+
+  <h2>Sản phẩm điện thoại</h2>
+  <div id="men" class="products-grid"></div>
+
+  <h2>Sản phẩm laptop</h2>
+  <div id="women" class="products-grid"></div>
+</main>
+
+<!-- ================= Footer ================= -->
+<footer class="site-footer">
+  <div class="container footer-content">
+    <div class="footer-column">
+      <h3><i class="fas fa-store"></i> ShopOnline</h3>
+      <p>Mang đến trải nghiệm mua sắm trực tuyến nhanh chóng, dễ dàng và an toàn.</p>
+    </div>
+
+    <div class="footer-column">
+      <h3><i class="fas fa-headset"></i> Liên hệ</h3>
+      <ul>
+        <li><i class="fas fa-map-marker-alt"></i> 123 Đường ABC, Hà Nội</li>
+        <li><i class="fas fa-phone"></i> 0123 456 789</li>
+        <li><i class="fas fa-envelope"></i> support@shoponline.com</li>
+      </ul>
+    </div>
+
+    <div class="footer-column">
+      <h3><i class="fas fa-list"></i> Danh mục</h3>
+      <ul>
+        <li><a href="#"><i class="fas fa-home"></i> Trang chủ</a></li>
+        <li><a href="product.html"><i class="fas fa-box"></i> Chi tiết sản phẩm</a></li>
+        <li><a href="#"><i class="fas fa-tags"></i> Khuyến mãi</a></li>
+        <li><a href="#"><i class="fas fa-newspaper"></i> Tin tức</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-column">
+      <h3><i class="fas fa-share-alt"></i> Theo dõi chúng tôi</h3>
+      <div class="social-icons">
+        <a href="#"><i class="fab fa-facebook"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+        <a href="#"><i class="fab fa-tiktok"></i></a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2025 ShopOnline. All rights reserved.</p>
+  </div>
+</footer>
+
+<!-- ================= Script ================= -->
+<script>
+  // ==================== Class Sản phẩm ====================
+  class Product {
+    constructor(id, name, price, image, category, hot, description) {
+      this.id = id;
+      this.name = name;
+      this.price = price;
+      this.image = image;
+      this.category = category;
+      this.hot = hot;
+      this.description = description;
+    }
+
+    render() {
+      return `
+        <div class="product">
+          <a href="detail.html?id=${this.id}">
+            <img src="${this.image}" alt="${this.name}">
+          </a>
+          <h4>${this.name}</h4>
+          <p>Giá: ${this.price.toLocaleString()} đ</p>
+        </div>
+      `;
+    }
+  }
+
+  // ==================== Hiển thị sản phẩm theo nhóm ====================
+  const hotDiv = document.getElementById('hot');
+  const menDiv = document.getElementById('men');
+  const womenDiv = document.getElementById('women');
+
+  fetch('http://localhost:3000/products')
+    .then(response => response.json())
+    .then(data => {
+      // Sản phẩm nổi bật (hot)
+      const dataHot = data.filter(p => p.hot === true);
+      hotDiv.innerHTML = dataHot.length 
+        ? dataHot.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
+        : '<p>Chưa có sản phẩm nổi bật</p>';
+
+      // Điện thoại
+      const dataPhone = data.filter(p => p.category === "điện thoại");
+      menDiv.innerHTML = dataPhone.length 
+        ? dataPhone.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
+        : '<p>Chưa có sản phẩm điện thoại</p>';
+
+      // Laptop
+      const dataLaptop = data.filter(p => p.category === "laptop");
+      womenDiv.innerHTML = dataLaptop.length 
+        ? dataLaptop.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
+        : '<p>Chưa có sản phẩm laptop</p>';
+    })
+    .catch(err => {
+      console.error(err);
+      hotDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
+      menDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
+      womenDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
+    });
+
+  // ==================== Cập nhật icon giỏ hàng ====================
+  const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
+  const cartCount = document.querySelector('.cart-count');
+  if (cartCount) cartCount.textContent = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+</script>
+</body>
+</html>

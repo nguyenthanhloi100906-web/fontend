@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="container">
+    <h1><i class="fas fa-cog"></i> Quản lý hệ thống</h1>
+
+    <!-- Menu điều hướng -->
+    <ul class="nav-menu">
+      <li><a href="#" class="nav-link active" data-section="products">Quản lý sản phẩm</a></li>
+      <li><a href="#" class="nav-link" data-section="questions">Quản lý câu hỏi</a></li>
+    </ul>
+
+    <div class="section">
+      <!-- QUẢN LÝ SẢN PHẨM -->
+      <div id="products" class="content-section">
+        <h2>Quản lý sản phẩm</h2>
+        <button class="add-button" id="open-add-product-modal">
+          <i class="fas fa-plus"></i> Thêm sản phẩm
+        </button>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tên sản phẩm</th>
+              <th>Giá</th>
+              <th>Ảnh</th>
+              <th>Danh mục</th>
+              <th>Hot</th>
+              <th>Mô tả</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="admin-product-list"></tbody>
+        </table>
+      </div>
+
+      <!-- QUẢN LÝ CÂU HỎI (để sau) -->
+      <div id="questions" class="content-section" style="display: none;">
+        <h2>Quản lý câu hỏi</h2>
+        <button class="add-button" id="add-question">
+          <i class="fas fa-plus"></i> Thêm câu hỏi
+        </button>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Câu hỏi</th>
+              <th>Đáp án</th>
+              <th>Khóa học</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="question-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MODAL THÊM / SỬA SẢN PHẨM -->
+    <div id="product-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <span class="close-button" id="close-product-modal">&times;</span>
+        <h2>Thêm / Sửa sản phẩm</h2>
+        <form id="admin-form">
+          <input type="hidden" id="product-id">
+          <div>
+            <label for="admin-name">Tên sản phẩm:</label>
+            <input type="text" id="admin-name" required>
+          </div>
+          <div>
+            <label for="admin-price">Giá:</label>
+            <input type="number" id="admin-price" required>
+          </div>
+          <div>
+            <label for="admin-image">Ảnh (URL):</label>
+            <input type="text" id="admin-image" required>
+          </div>
+          <div>
+            <label for="admin-category">Danh mục:</label>
+            <input type="text" id="admin-category" required>
+          </div>
+          <div>
+            <label for="admin-hot">Hot:</label>
+            <input type="checkbox" id="admin-hot">
+          </div>
+          <div>
+            <label for="admin-description">Mô tả:</label>
+            <textarea id="admin-description" required></textarea>
+          </div>
+          <button type="submit" class="save-button">Lưu</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-copyright">
+        © 2025 Admin Panel. All rights reserved.
+      </div>
+      <div class="footer-links">
+        <a href="#"><i class="fas fa-question-circle"></i> Trợ giúp</a>
+        <a href="#"><i class="fas fa-envelope"></i> Liên hệ</a>
+        <a href="#"><i class="fas fa-shield-alt"></i> Chính sách</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="man.js"></script>
+</body>
+</html>
