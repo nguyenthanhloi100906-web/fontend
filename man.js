@@ -5,24 +5,35 @@ const PRODUCTS_URL = IS_GITHUB_PAGES
   ? './data/products.json'           // đường dẫn tương đối tới file tĩnh trong repo
   : 'http://localhost:3000/products'; // json-server khi chạy local
 
+// ---- CHỈNH SỬA: Chuẩn hoá dữ liệu để nhận cả [] hoặc { products: [] }
+function normalizeProducts(json) {
+  if (Array.isArray(json)) return json;
+  if (json && Array.isArray(json.products)) return json.products;
+  return [];
+}
+
 // Helper: tải toàn bộ danh sách sản phẩm
-function fetchProducts() {
-  return fetch(PRODUCTS_URL).then(res => {
+async function fetchProducts() {
+  try {
+    const res = await fetch(PRODUCTS_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
-    return res.json();
-  });
+    const json = await res.json();
+    return normalizeProducts(json);
+  } catch (err) {
+    console.error('❌ fetchProducts lỗi:', err);
+    throw err;
+  }
 }
 
 // Helper: lấy 1 sản phẩm theo id (client-filter khi dùng file tĩnh)
-function fetchProductById(id) {
+async function fetchProductById(id) {
   if (IS_GITHUB_PAGES) {
-    return fetchProducts().then(list => list.find(p => String(p.id) === String(id)));
+    const list = await fetchProducts();
+    return list.find(p => String(p.id) === String(id));
   }
-  // Local json-server có endpoint /products/:id
-  return fetch(`${PRODUCTS_URL}/${id}`).then(res => {
-    if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
-    return res.json();
-  });
+  const res = await fetch(`${PRODUCTS_URL}/${id}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
+  return res.json();
 }
 
 // ==================== CLASS SẢN PHẨM ====================
@@ -44,7 +55,7 @@ class Product {
         <a href="detail.html?id=${this.id}">
           <h3>${this.name}</h3>
         </a>
-        <p>${this.price.toLocaleString()} đ</p>
+        <p>${Number(this.price).toLocaleString('vi-VN')} đ</p>
       </div>
     `;
   }
@@ -55,7 +66,7 @@ class Product {
         <img src="${this.image}" alt="${this.name}">
         <div class="info">
           <h2>${this.name}</h2>
-          <p>Giá: ${this.price.toLocaleString()} đ</p>
+          <p>Giá: ${Number(this.price).toLocaleString('vi-VN')} đ</p>
           <span>${this.description}</span>
           <button class="add-to-cart" data-id="${this.id}">Thêm vào giỏ hàng</button>
         </div>
@@ -429,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <tr>
             <td>${p.id}</td>
             <td>${p.name}</td>
-            <td>${Number(p.price).toLocaleString()} đ</td>
+            <td>${Number(p.price).toLocaleString('vi-VN')} đ</td>
             <td><img src="${p.image}" style="height:50px"></td>
             <td>${p.category}</td>
             <td>${p.hot ? '✅' : '❌'}</td>
@@ -480,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
         return;
       }
-      // (Local: xử lý như cũ nếu bạn cần – bỏ vì chạy online không dùng được)
+      // (Local: xử lý như cũ nếu bạn cần – để trống vì online không dùng được)
     });
   }
 
