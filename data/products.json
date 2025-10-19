@@ -1,0 +1,20 @@
+﻿[
+  {
+    "id": 1,
+    "name": "iPhone 14",
+    "price": 18990000,
+    "image": "img/iphone14.jpg",
+    "category": "điện thoại",
+    "hot": true,
+    "description": "Màn hình OLED 6.1\", chip A15"
+  },
+  {
+    "id": 2,
+    "name": "MacBook Air M2",
+    "price": 26990000,
+    "image": "img/mbairm2.jpg",
+    "category": "laptop",
+    "hot": false,
+    "description": "Chip Apple M2, 8GB RAM"
+  }
+]
