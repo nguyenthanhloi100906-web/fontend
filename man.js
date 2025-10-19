@@ -1,23 +1,45 @@
 // ==================== CẤU HÌNH API TƯƠNG THÍCH LOCAL / GITHUB ====================
-// Nếu chạy trên GitHub Pages (domain *.github.io) thì dùng file tĩnh ./data/products.json
+// Nhận biết khi chạy trên GitHub Pages (domain *.github.io)
 const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
-const PRODUCTS_URL = IS_GITHUB_PAGES
-  ? './data/products.json'           // đường dẫn tương đối tới file tĩnh trong repo
-  : 'http://localhost:3000/products'; // json-server khi chạy local
 
-// ---- CHỈNH SỬA: Chuẩn hoá dữ liệu để nhận cả [] hoặc { products: [] }
+// ⚠️ ĐIỀN ĐÚNG TÊN REPO Pages của bạn (thư mục gốc hiển thị web)
+const REPO = 'fontend';
+
+// Với GitHub Pages: ưu tiên dùng đường dẫn TUYỆT ĐỐI để tránh lỗi 404 khi chuyển trang.
+// Nếu tuyệt đối lỗi (khác cấu trúc), sẽ thử lại đường dẫn tương đối.
+const PRODUCTS_URLS = IS_GITHUB_PAGES
+  ? [`/${REPO}/data/products.json`, `./data/products.json`]
+  : ['http://localhost:3000/products'];
+
+// ---- CHUẨN HOÁ dữ liệu: nhận cả dạng [] hoặc { products: [] }
 function normalizeProducts(json) {
   if (Array.isArray(json)) return json;
   if (json && Array.isArray(json.products)) return json.products;
   return [];
 }
 
+// Thử fetch theo danh sách URL (để có fallback)
+async function fetchFirst(urls) {
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
+      const json = await res.json();
+      console.log('[DEBUG] Loaded products from:', url);
+      return json;
+    } catch (err) {
+      console.warn('[WARN] fetch failed:', err);
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('Không thể tải dữ liệu sản phẩm');
+}
+
 // Helper: tải toàn bộ danh sách sản phẩm
 async function fetchProducts() {
   try {
-    const res = await fetch(PRODUCTS_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
-    const json = await res.json();
+    const json = await fetchFirst(PRODUCTS_URLS);
     return normalizeProducts(json);
   } catch (err) {
     console.error('❌ fetchProducts lỗi:', err);
@@ -31,7 +53,7 @@ async function fetchProductById(id) {
     const list = await fetchProducts();
     return list.find(p => String(p.id) === String(id));
   }
-  const res = await fetch(`${PRODUCTS_URL}/${id}`, { cache: 'no-store' });
+  const res = await fetch(`${PRODUCTS_URLS[0]}/${id}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
   return res.json();
 }
@@ -203,14 +225,12 @@ document.addEventListener('click', (e) => {
 
 // ==================== RENDER DANH SÁCH SẢN PHẨM ====================
 function renderProduct(array, theDiv) {
-  let html = "";
-  array.forEach((data) => {
+  theDiv.innerHTML = array.map((data) => {
     const product = new Product(
       data.id, data.name, data.price, data.image, data.category, data.hot, data.description
     );
-    html += product.render();
-  });
-  theDiv.innerHTML = html;
+    return product.render();
+  }).join('');
 }
 
 // ==================== TRANG INDEX ====================
@@ -290,8 +310,7 @@ if (productDetailDiv) {
   }
 }
 
-/* ==================== TRANG GIỎ HÀNG (cart.html) ====================
-   ✅ PHẦN HIỂN THỊ GIỎ HÀNG (không liên quan backend) */
+/* ==================== TRANG GIỎ HÀNG (cart.html) ==================== */
 function formatVND(n) {
   const num = Number(n) || 0;
   return num.toLocaleString('vi-VN') + ' đ';
@@ -300,9 +319,8 @@ function formatVND(n) {
 function renderCartPage() {
   const listEl = document.getElementById('cart-items');
   const summaryEl = document.getElementById('cart-summary');
-  if (!listEl || !summaryEl) return; // Không phải cart.html thì bỏ qua
+  if (!listEl || !summaryEl) return;
 
-  // Giỏ trống
   if (!cart.items.length) {
     listEl.innerHTML = `
       <div class="empty-cart" style="padding:18px;border:1px dashed #ddd;border-radius:10px;">
@@ -318,7 +336,6 @@ function renderCartPage() {
     return;
   }
 
-  // Danh sách item
   listEl.innerHTML = cart.items.map(item => `
     <div class="cart-item" data-id="${item.id}" style="display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #eee;">
       <img src="${item.image}" alt="${item.name}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;">
@@ -339,7 +356,6 @@ function renderCartPage() {
     </div>
   `).join('');
 
-  // Tổng tiền
   const total = cart.items.reduce((s, it) => s + Number(it.price) * Number(it.quantity), 0);
   summaryEl.innerHTML = `
     <div class="cart-summary-box" style="margin-top:16px;padding:14px;border:1px solid #eee;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -406,13 +422,11 @@ document.addEventListener('change', (e) => {
 createHeader();
 createFooter();
 updateCartCount();
-// Gọi render giỏ khi ở cart.html (không ảnh hưởng trang khác)
-renderCartPage();
+renderCartPage(); // chỉ hiển thị khi ở cart.html
 
 ////////////////////////////////////////////////////////////////
 // ============= PHẦN ADMIN - QUẢN LÝ SẢN PHẨM =============== //
 ////////////////////////////////////////////////////////////////
-
 document.addEventListener('DOMContentLoaded', () => {
   const adminTable = document.getElementById('admin-product-list');
   const adminForm = document.getElementById('admin-form');
@@ -427,11 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const openModalBtn = document.getElementById('open-add-product-modal');
   const closeModalBtn = document.getElementById('close-product-modal');
 
-  // ⚠️ Trên GitHub Pages không thể POST/PUT/DELETE.
-  // Vẫn có thể HIỂN THỊ danh sách sản phẩm admin bằng GET.
-  const API_URL = PRODUCTS_URL;
-
-  // ======================= HIỂN THỊ DANH SÁCH =======================
+  // ⚠️ GitHub Pages KHÔNG thể POST/PUT/DELETE — chỉ hiển thị (GET)
   function renderAdminProducts() {
     fetchProducts()
       .then(products => {
@@ -459,59 +469,24 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
   }
 
-  // ======================= MỞ / ĐÓNG MODAL =======================
   if (openModalBtn) {
     openModalBtn.addEventListener('click', () => {
-      if (IS_GITHUB_PAGES) {
-        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
-        return;
-      }
-      if (adminForm) adminForm.reset();
-      if (productModal) productModal.style.display = 'block';
+      alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
     });
   }
-
   if (closeModalBtn) {
     closeModalBtn.addEventListener('click', () => {
       if (productModal) productModal.style.display = 'none';
     });
   }
 
-  window.addEventListener('click', (e) => {
-    if (e.target === productModal) {
-      productModal.style.display = 'none';
-    }
-  });
-
-  // ======================= SUBMIT FORM =======================
-  if (adminForm) {
-    adminForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (IS_GITHUB_PAGES) {
-        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
-        return;
-      }
-      // (Local: xử lý như cũ nếu bạn cần – để trống vì online không dùng được)
-    });
-  }
-
-  // ======================= XÓA & SỬA =======================
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
-
-    const id = parseInt(btn.getAttribute('data-id'));
-    if (!id) return;
-
     if (btn.classList.contains('delete-product') || btn.classList.contains('edit-product')) {
-      if (IS_GITHUB_PAGES) {
-        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
-        return;
-      }
-      // (Local: xử lý như cũ nếu bạn cần)
+      alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
     }
   });
 
-  // ======================= LOAD LẦN ĐẦU =======================
   if (adminTable) renderAdminProducts();
 });
