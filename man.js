@@ -2,16 +2,26 @@
 // Nhận biết khi chạy trên GitHub Pages (domain *.github.io)
 const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
 
-// ⚠️ ĐIỀN ĐÚNG TÊN REPO Pages của bạn (thư mục gốc hiển thị web)
-const REPO = 'fontend';
+// Tên owner & repo của bạn
+const OWNER   = 'nguyenthanhloi100906-web';
+const REPO    = 'fontend';   // repo FE đang hiển thị web
+const DB_REPO = 'dbjson';    // repo chứa db.json
 
-// Với GitHub Pages: ưu tiên dùng đường dẫn TUYỆT ĐỐI để tránh lỗi 404 khi chuyển trang.
-// Nếu tuyệt đối lỗi (khác cấu trúc), sẽ thử lại đường dẫn tương đối.
+// Khi chạy online (GitHub Pages):
+// 1) Thử file tĩnh trong chính repo FE
+// 2) Thử db.json từ repo dbjson trên GitHub Pages
+// 3) Fallback CDN jsDelivr của repo dbjson
+// 4) Thử lại đường dẫn tương đối
+// Khi chạy local: dùng json-server
 const PRODUCTS_URLS = IS_GITHUB_PAGES
-  ? [`/${REPO}/data/products.json`, `./data/products.json`]
+  ? [
+      `https://${OWNER}.github.io/${REPO}/data/products.json?v=${Date.now()}`,
+      `https://${OWNER}.github.io/${DB_REPO}/db.json?v=${Date.now()}`,
+      `https://cdn.jsdelivr.net/gh/${OWNER}/${DB_REPO}/db.json?v=${Date.now()}`,
+      `./data/products.json?v=${Date.now()}`
+    ]
   : ['http://localhost:3000/products'];
 
-// ---- CHUẨN HOÁ dữ liệu: nhận cả dạng [] hoặc { products: [] }
 function normalizeProducts(json) {
   if (Array.isArray(json)) return json;
   if (json && Array.isArray(json.products)) return json.products;
