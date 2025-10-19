@@ -1,3 +1,30 @@
+// ==================== CẤU HÌNH API TƯƠNG THÍCH LOCAL / GITHUB ====================
+// Nếu chạy trên GitHub Pages (domain *.github.io) thì dùng file tĩnh ./data/products.json
+const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
+const PRODUCTS_URL = IS_GITHUB_PAGES
+  ? './data/products.json'           // đường dẫn tương đối tới file tĩnh trong repo
+  : 'http://localhost:3000/products'; // json-server khi chạy local
+
+// Helper: tải toàn bộ danh sách sản phẩm
+function fetchProducts() {
+  return fetch(PRODUCTS_URL).then(res => {
+    if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
+    return res.json();
+  });
+}
+
+// Helper: lấy 1 sản phẩm theo id (client-filter khi dùng file tĩnh)
+function fetchProductById(id) {
+  if (IS_GITHUB_PAGES) {
+    return fetchProducts().then(list => list.find(p => String(p.id) === String(id)));
+  }
+  // Local json-server có endpoint /products/:id
+  return fetch(`${PRODUCTS_URL}/${id}`).then(res => {
+    if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
+    return res.json();
+  });
+}
+
 // ==================== CLASS SẢN PHẨM ====================
 class Product {
   constructor(id, name, price, image, category, hot, description) {
@@ -149,9 +176,9 @@ function updateCartCount() {
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('add-to-cart')) {
     const id = e.target.getAttribute('data-id');
-    fetch(`http://localhost:3000/products/${id}`)
-      .then(res => res.json())
+    fetchProductById(id)
       .then(data => {
+        if (!data) throw new Error('Không tìm thấy sản phẩm');
         const product = new Product(
           data.id, data.name, data.price, data.image, data.category, data.hot, data.description
         );
@@ -181,8 +208,7 @@ const menDiv = document.getElementById('men');
 const womenDiv = document.getElementById('women');
 
 if (hotDiv) {
-  fetch('http://localhost:3000/products')
-    .then(response => response.json())
+  fetchProducts()
     .then(data => {
       const dataHot = data.filter(p => p.hot === true);
       const dataPhone = data.filter(p => p.category === "điện thoại");
@@ -190,7 +216,8 @@ if (hotDiv) {
       renderProduct(dataHot, hotDiv);
       if (menDiv) renderProduct(dataPhone, menDiv);
       if (womenDiv) renderProduct(dataLaptop, womenDiv);
-    });
+    })
+    .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
 }
 
 // ==================== TRANG SẢN PHẨM ====================
@@ -200,12 +227,12 @@ const sortPrice = document.getElementById('sort-price');
 let allProductsData = [];
 
 if (productAll) {
-  fetch('http://localhost:3000/products')
-    .then(response => response.json())
+  fetchProducts()
     .then(data => {
       allProductsData = data;
       renderProduct(data, productAll);
-    });
+    })
+    .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
 
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
@@ -236,19 +263,16 @@ if (productDetailDiv) {
   const id = urlParams.get('id');
 
   if (id) {
-    fetch(`http://localhost:3000/products/${id}`)
-      .then(response => {
-        if (!response.ok) throw new Error("Không tìm thấy sản phẩm");
-        return response.json();
-      })
+    fetchProductById(id)
       .then(data => {
+        if (!data) throw new Error("Không tìm thấy sản phẩm");
         const product = new Product(
           data.id, data.name, data.price, data.image, data.category, data.hot, data.description
         );
         productDetailDiv.innerHTML = product.renderDetail();
       })
       .catch(err => {
-        productDetailDiv.innerHTML = `<p style="color:red;">${err.message}</p>`;
+        productDetailDiv.innerHTML = `<p style="color:red;">${err.message || 'Lỗi tải sản phẩm'}</p>`;
       });
   } else {
     productDetailDiv.innerHTML = `<p style="color:red;">❌ Không có ID sản phẩm</p>`;
@@ -256,7 +280,7 @@ if (productDetailDiv) {
 }
 
 /* ==================== TRANG GIỎ HÀNG (cart.html) ====================
-   ✅ PHẦN THÊM MỚI: chỉ hiển thị & thao tác giỏ hàng; KHÔNG ảnh hưởng trang khác */
+   ✅ PHẦN HIỂN THỊ GIỎ HÀNG (không liên quan backend) */
 function formatVND(n) {
   const num = Number(n) || 0;
   return num.toLocaleString('vi-VN') + ' đ';
@@ -392,14 +416,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const openModalBtn = document.getElementById('open-add-product-modal');
   const closeModalBtn = document.getElementById('close-product-modal');
 
-  const API_URL = 'http://localhost:3000/products';
-  let editingId = null;
+  // ⚠️ Trên GitHub Pages không thể POST/PUT/DELETE.
+  // Vẫn có thể HIỂN THỊ danh sách sản phẩm admin bằng GET.
+  const API_URL = PRODUCTS_URL;
 
   // ======================= HIỂN THỊ DANH SÁCH =======================
   function renderAdminProducts() {
-    fetch(API_URL)
-      .then(res => res.json())
+    fetchProducts()
       .then(products => {
+        if (!adminTable) return;
         adminTable.innerHTML = products.map(p => `
           <tr>
             <td>${p.id}</td>
@@ -424,15 +449,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ======================= MỞ / ĐÓNG MODAL =======================
-  openModalBtn.addEventListener('click', () => {
-    editingId = null;
-    adminForm.reset();
-    productModal.style.display = 'block';
-  });
+  if (openModalBtn) {
+    openModalBtn.addEventListener('click', () => {
+      if (IS_GITHUB_PAGES) {
+        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
+        return;
+      }
+      if (adminForm) adminForm.reset();
+      if (productModal) productModal.style.display = 'block';
+    });
+  }
 
-  closeModalBtn.addEventListener('click', () => {
-    productModal.style.display = 'none';
-  });
+  if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => {
+      if (productModal) productModal.style.display = 'none';
+    });
+  }
 
   window.addEventListener('click', (e) => {
     if (e.target === productModal) {
@@ -441,53 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ======================= SUBMIT FORM =======================
-  adminForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    const newProduct = {
-      name: adminName.value.trim(),
-      price: Number(adminPrice.value),
-      image: adminImage.value.trim(),
-      category: adminCategory.value.trim(),
-      hot: adminHot.checked,
-      description: adminDescription.value.trim()
-    };
-    if (!newProduct.name || !newProduct.price || !newProduct.image || !newProduct.category) {
-      alert('❌ Vui lòng nhập đầy đủ thông tin!');
-      return;
-    }
-
-    if (editingId !== null) {
-      fetch(`${API_URL}/${editingId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newProduct, id: editingId })
-      })
-        .then(res => res.json())
-        .then(() => {
-          alert('✅ Cập nhật sản phẩm thành công!');
-          adminForm.reset();
-          productModal.style.display = 'none';
-          editingId = null;
-          renderAdminProducts();
-        })
-        .catch(err => console.error('❌ Lỗi cập nhật sản phẩm:', err));
-    } else {
-      fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProduct)
-      })
-        .then(res => res.json())
-        .then(() => {
-          alert('✅ Thêm sản phẩm thành công!');
-          adminForm.reset();
-          productModal.style.display = 'none';
-          renderAdminProducts();
-        })
-        .catch(err => console.error('❌ Lỗi thêm sản phẩm:', err));
-    }
-  });
+  if (adminForm) {
+    adminForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (IS_GITHUB_PAGES) {
+        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
+        return;
+      }
+      // (Local: xử lý như cũ nếu bạn cần – bỏ vì chạy online không dùng được)
+    });
+  }
 
   // ======================= XÓA & SỬA =======================
   document.addEventListener('click', (e) => {
@@ -497,35 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = parseInt(btn.getAttribute('data-id'));
     if (!id) return;
 
-    if (btn.classList.contains('delete-product')) {
-      if (confirm('🗑️ Bạn có chắc muốn xóa sản phẩm này?')) {
-        fetch(`${API_URL}/${id}`, { method: 'DELETE' })
-          .then(() => {
-            alert('🗑️ Đã xóa sản phẩm!');
-            renderAdminProducts();
-          })
-          .catch(err => console.error('❌ Lỗi xóa sản phẩm:', err));
+    if (btn.classList.contains('delete-product') || btn.classList.contains('edit-product')) {
+      if (IS_GITHUB_PAGES) {
+        alert('Chức năng thêm/sửa/xóa không khả dụng trên GitHub Pages (static).');
+        return;
       }
-    }
-
-    if (btn.classList.contains('edit-product')) {
-      fetch(`${API_URL}/${id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data) {
-            alert('❌ Không tìm thấy sản phẩm!');
-            return;
-          }
-          editingId = data.id;
-          adminName.value = data.name;
-          adminPrice.value = data.price;
-          adminImage.value = data.image;
-          adminCategory.value = data.category;
-          adminHot.checked = data.hot;
-          adminDescription.value = data.description;
-          productModal.style.display = 'block';
-        })
-        .catch(err => console.error('❌ Lỗi lấy sản phẩm để sửa:', err));
+      // (Local: xử lý như cũ nếu bạn cần)
     }
   });
 
