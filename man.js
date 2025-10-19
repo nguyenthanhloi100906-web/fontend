@@ -255,10 +255,124 @@ if (productDetailDiv) {
   }
 }
 
+/* ==================== TRANG GIỎ HÀNG (cart.html) ====================
+   ✅ PHẦN THÊM MỚI: chỉ hiển thị & thao tác giỏ hàng; KHÔNG ảnh hưởng trang khác */
+function formatVND(n) {
+  const num = Number(n) || 0;
+  return num.toLocaleString('vi-VN') + ' đ';
+}
+
+function renderCartPage() {
+  const listEl = document.getElementById('cart-items');
+  const summaryEl = document.getElementById('cart-summary');
+  if (!listEl || !summaryEl) return; // Không phải cart.html thì bỏ qua
+
+  // Giỏ trống
+  if (!cart.items.length) {
+    listEl.innerHTML = `
+      <div class="empty-cart" style="padding:18px;border:1px dashed #ddd;border-radius:10px;">
+        <p>🛒 Giỏ hàng của bạn đang trống.</p>
+        <p><a href="product.html">Tiếp tục mua sắm →</a></p>
+      </div>
+    `;
+    summaryEl.innerHTML = `
+      <div class="cart-summary-box" style="margin-top:16px;padding:14px;border:1px solid #eee;border-radius:10px;">
+        <strong>Tổng tiền: 0 đ</strong>
+      </div>
+    `;
+    return;
+  }
+
+  // Danh sách item
+  listEl.innerHTML = cart.items.map(item => `
+    <div class="cart-item" data-id="${item.id}" style="display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #eee;">
+      <img src="${item.image}" alt="${item.name}" style="width:80px;height:80px;object-fit:cover;border-radius:10px;">
+      <div style="flex:1;">
+        <div style="font-weight:600;margin-bottom:6px;">${item.name}</div>
+        <div>Đơn giá: <strong>${formatVND(item.price)}</strong></div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+          <button class="qty-decrease" aria-label="Giảm">-</button>
+          <input class="qty-input" type="number" min="1" value="${item.quantity}" style="width:64px;text-align:center;">
+          <button class="qty-increase" aria-label="Tăng">+</button>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div>Tạm tính</div>
+        <div style="font-weight:700;">${formatVND(Number(item.price) * Number(item.quantity))}</div>
+        <button class="remove-item" style="margin-top:10px;color:#c00;">Xóa</button>
+      </div>
+    </div>
+  `).join('');
+
+  // Tổng tiền
+  const total = cart.items.reduce((s, it) => s + Number(it.price) * Number(it.quantity), 0);
+  summaryEl.innerHTML = `
+    <div class="cart-summary-box" style="margin-top:16px;padding:14px;border:1px solid #eee;border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <strong style="font-size:18px;">Tổng tiền: <span id="cart-total">${formatVND(total)}</span></strong>
+      <div style="display:flex;gap:8px;">
+        <button id="clear-cart">Xóa giỏ hàng</button>
+        <a href="checkout.html" class="btn">Thanh toán</a>
+      </div>
+    </div>
+  `;
+}
+
+// Click: tăng/giảm/xóa từng sản phẩm + xóa toàn bộ
+document.addEventListener('click', (e) => {
+  const itemRow = e.target.closest('.cart-item');
+  if (itemRow) {
+    const id = String(itemRow.getAttribute('data-id'));
+    const item = cart.items.find(x => String(x.id) === id);
+    if (!item) return;
+
+    if (e.target.classList.contains('qty-increase')) {
+      item.quantity++;
+      cart.save(); updateCartCount(); renderCartPage();
+      return;
+    }
+    if (e.target.classList.contains('qty-decrease')) {
+      item.quantity = Math.max(1, Number(item.quantity) - 1);
+      cart.save(); updateCartCount(); renderCartPage();
+      return;
+    }
+    if (e.target.classList.contains('remove-item')) {
+      if (confirm('Xóa sản phẩm này khỏi giỏ?')) {
+        cart.items = cart.items.filter(x => String(x.id) !== id);
+        cart.save(); updateCartCount(); renderCartPage();
+      }
+      return;
+    }
+  }
+
+  if (e.target.id === 'clear-cart') {
+    if (confirm('Bạn muốn xóa toàn bộ giỏ hàng?')) {
+      cart.items = [];
+      cart.save(); updateCartCount(); renderCartPage();
+    }
+  }
+});
+
+// Change: nhập số lượng bằng input
+document.addEventListener('change', (e) => {
+  if (!e.target.classList.contains('qty-input')) return;
+  const row = e.target.closest('.cart-item');
+  if (!row) return;
+
+  const id = String(row.getAttribute('data-id'));
+  const item = cart.items.find(x => String(x.id) === id);
+  if (!item) return;
+
+  const val = Math.max(1, parseInt(e.target.value || '1', 10));
+  item.quantity = val;
+  cart.save(); updateCartCount(); renderCartPage();
+});
+
 // ==================== KHỞI TẠO TRANG ====================
 createHeader();
 createFooter();
 updateCartCount();
+// Gọi render giỏ khi ở cart.html (không ảnh hưởng trang khác)
+renderCartPage();
 
 ////////////////////////////////////////////////////////////////
 // ============= PHẦN ADMIN - QUẢN LÝ SẢN PHẨM =============== //
@@ -338,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hot: adminHot.checked,
       description: adminDescription.value.trim()
     };
-if (!newProduct.name || !newProduct.price || !newProduct.image || !newProduct.category) {
+    if (!newProduct.name || !newProduct.price || !newProduct.image || !newProduct.category) {
       alert('❌ Vui lòng nhập đầy đủ thông tin!');
       return;
     }
