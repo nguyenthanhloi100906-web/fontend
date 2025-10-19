@@ -110,8 +110,13 @@
   </div>
 </footer>
 
-<!-- ================= Script ================= -->
 <script>
+  // URL JSON (online & local)
+  const IS_GH = location.hostname.endsWith('github.io');
+  const PRODUCTS_URL = IS_GH
+    ? 'https://nguyenthanhloi100906-web.github.io/dbjson/db.json' // repo dbjson của bạn
+    : 'http://localhost:3000/products';                             // khi chạy local với json-server
+
   // ==================== Class Sản phẩm ====================
   class Product {
     constructor(id, name, price, image, category, hot, description) {
@@ -131,7 +136,7 @@
             <img src="${this.image}" alt="${this.name}">
           </a>
           <h4>${this.name}</h4>
-          <p>Giá: ${this.price.toLocaleString()} đ</p>
+          <p>Giá: ${Number(this.price).toLocaleString('vi-VN')} đ</p>
         </div>
       `;
     }
@@ -142,29 +147,35 @@
   const menDiv = document.getElementById('men');
   const womenDiv = document.getElementById('women');
 
-  fetch('http://localhost:3000/products')
-    .then(response => response.json())
+  fetch(PRODUCTS_URL, { cache: 'no-store' })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(data => {
-      // Sản phẩm nổi bật (hot)
-      const dataHot = data.filter(p => p.hot === true);
-      hotDiv.innerHTML = dataHot.length 
+      // data có thể là [] hoặc {products: []} -> chuẩn hoá
+      const list = Array.isArray(data) ? data : (Array.isArray(data.products) ? data.products : []);
+
+      // Sản phẩm nổi bật
+      const dataHot = list.filter(p => p.hot === true);
+      hotDiv.innerHTML = dataHot.length
         ? dataHot.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
         : '<p>Chưa có sản phẩm nổi bật</p>';
 
       // Điện thoại
-      const dataPhone = data.filter(p => p.category === "điện thoại");
-      menDiv.innerHTML = dataPhone.length 
+      const dataPhone = list.filter(p => p.category === 'điện thoại');
+      menDiv.innerHTML = dataPhone.length
         ? dataPhone.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
         : '<p>Chưa có sản phẩm điện thoại</p>';
 
       // Laptop
-      const dataLaptop = data.filter(p => p.category === "laptop");
-      womenDiv.innerHTML = dataLaptop.length 
+      const dataLaptop = list.filter(p => p.category === 'laptop');
+      womenDiv.innerHTML = dataLaptop.length
         ? dataLaptop.map(item => new Product(item.id, item.name, item.price, item.image, item.category, item.hot, item.description).render()).join('')
         : '<p>Chưa có sản phẩm laptop</p>';
     })
     .catch(err => {
-      console.error(err);
+      console.error('Lỗi tải JSON:', err);
       hotDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
       menDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
       womenDiv.innerHTML = '<p>Lỗi khi tải sản phẩm.</p>';
@@ -173,7 +184,8 @@
   // ==================== Cập nhật icon giỏ hàng ====================
   const cartItems = JSON.parse(localStorage.getItem('cart')) || [];
   const cartCount = document.querySelector('.cart-count');
-  if (cartCount) cartCount.textContent = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  if (cartCount) cartCount.textContent = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 </script>
+
 </body>
 </html>
