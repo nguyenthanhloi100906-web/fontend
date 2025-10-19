@@ -22,6 +22,7 @@ const PRODUCTS_URLS = IS_GITHUB_PAGES
     ]
   : ['http://localhost:3000/products'];
 
+
 function normalizeProducts(json) {
   if (Array.isArray(json)) return json;
   if (json && Array.isArray(json.products)) return json.products;
