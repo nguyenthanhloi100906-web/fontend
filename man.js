@@ -1,17 +1,44 @@
 // ==================== CẤU HÌNH API TƯƠNG THÍCH LOCAL / GITHUB ====================
+// Nếu chạy trên GitHub Pages (domain *.github.io) thì dùng file tĩnh ./data/products.json
 const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
-const OWNER = 'nguyenthanhloi100906-web';
-const REPO = 'fontend';  
-const DB_REPO = 'dbjson';    
+const OWNER = 'nguyenthanhloi100906-web'; // Tên user GitHub của bạn
+const REPO = 'fontend';  // Tên repo của bạn chứa dữ liệu sản phẩm
+const DB_REPO = 'dbjson'; // Repo chứa db.json
 
+// URL để lấy dữ liệu sản phẩm từ GitHub hoặc từ JSON server khi chạy trên local
 const PRODUCTS_URLS = IS_GITHUB_PAGES
   ? [
-      `https://${OWNER}.github.io/${REPO}/data/products.json?v=${Date.now()}`,
-      `https://${OWNER}.github.io/${DB_REPO}/db.json?v=${Date.now()}`,
-      `https://cdn.jsdelivr.net/gh/${OWNER}/${DB_REPO}/db.json?v=${Date.now()}`,
-      `./data/products.json?v=${Date.now()}`
+      `https://${OWNER}.github.io/${REPO}/data/products.json?v=${Date.now()}`,  // Lấy file JSON từ GitHub Pages
+      `https://${OWNER}.github.io/${DB_REPO}/db.json?v=${Date.now()}`,           // Lấy file DB từ GitHub Pages
+      `https://cdn.jsdelivr.net/gh/${OWNER}/${DB_REPO}/db.json?v=${Date.now()}`, // Sử dụng CDN để lấy DB từ GitHub
+      `./data/products.json?v=${Date.now()}`                                     // Dữ liệu file tĩnh trong repo
     ]
-  : ['http://localhost:3000/products'];  
+  : ['http://localhost:3000/products'];  // URL khi chạy trên local với json-server
+
+// Helper: tải toàn bộ danh sách sản phẩm
+function fetchProducts() {
+  return fetch(PRODUCTS_URLS[0])  // Lấy dữ liệu từ GitHub hoặc localhost
+    .then(res => {
+      if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
+      return res.json();
+    })
+    .catch(error => {
+      console.error('Lỗi khi lấy dữ liệu sản phẩm:', error);
+      return [];
+    });
+}
+
+// Helper: lấy 1 sản phẩm theo id (client-filter khi dùng file tĩnh)
+function fetchProductById(id) {
+  if (IS_GITHUB_PAGES) {
+    return fetchProducts().then(list => list.find(p => String(p.id) === String(id)));
+  }
+  // Local json-server có endpoint /products/:id
+  return fetch(`${PRODUCTS_URLS[0]}/${id}`).then(res => {
+    if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
+    return res.json();
+  });
+}
 
 // ==================== CLASS SẢN PHẨM ====================
 class Product {
@@ -32,7 +59,7 @@ class Product {
         <a href="detail.html?id=${this.id}">
           <h3>${this.name}</h3>
         </a>
-        <p>${Number(this.price).toLocaleString('vi-VN')} đ</p>
+        <p>${this.price.toLocaleString()} đ</p>
       </div>
     `;
   }
@@ -43,7 +70,7 @@ class Product {
         <img src="${this.image}" alt="${this.name}">
         <div class="info">
           <h2>${this.name}</h2>
-          <p>Giá: ${Number(this.price).toLocaleString('vi-VN')} đ</p>
+          <p>Giá: ${this.price.toLocaleString()} đ</p>
           <span>${this.description}</span>
           <button class="add-to-cart" data-id="${this.id}">Thêm vào giỏ hàng</button>
         </div>
@@ -160,183 +187,63 @@ function updateCartCount() {
   if (badge) badge.textContent = cart.getTotalQuantity();
 }
 
-// ==================== FETCH DỮ LIỆU ====================
-async function fetchProducts() {
-  try {
-    const response = await fetch(PRODUCTS_URLS[0]);
-    const json = await response.json();
-    return json;
-  } catch (err) {
-    console.error('❌ fetchProducts lỗi:', err);
-    throw err;
-  }
-}
-
 // ==================== RENDER DANH SÁCH SẢN PHẨM ====================
 function renderProduct(array, theDiv) {
-  theDiv.innerHTML = array.map((data) => {
+  let html = "";
+  array.forEach((data) => {
     const product = new Product(
       data.id, data.name, data.price, data.image, data.category, data.hot, data.description
     );
-    return product.render();
-  }).join('');
+    html += product.render();
+  });
+  theDiv.innerHTML = html;
 }
 
-// ==================== TRANG ADMIN ====================
-document.addEventListener('DOMContentLoaded', () => {
-  const adminTable = document.getElementById('admin-product-list');
-  const adminForm = document.getElementById('admin-form');
-  const adminName = document.getElementById('admin-name');
-  const adminPrice = document.getElementById('admin-price');
-  const adminImage = document.getElementById('admin-image');
-  const adminCategory = document.getElementById('admin-category');
-  const adminHot = document.getElementById('admin-hot');
-  const adminDescription = document.getElementById('admin-description');
+// ==================== TRANG INDEX ====================
+const hotDiv = document.getElementById('hot');
+const menDiv = document.getElementById('men');
+const womenDiv = document.getElementById('women');
 
-  const productModal = document.getElementById('product-modal');
-  const openModalBtn = document.getElementById('open-add-product-modal');
-  const closeModalBtn = document.getElementById('close-product-modal');
+if (hotDiv) {
+  fetchProducts()
+    .then(data => {
+      const dataHot = data.filter(p => p.hot === true);
+      const dataPhone = data.filter(p => p.category === "điện thoại");
+      const dataLaptop = data.filter(p => p.category === "laptop");
+      renderProduct(dataHot, hotDiv);
+      if (menDiv) renderProduct(dataPhone, menDiv);
+      if (womenDiv) renderProduct(dataLaptop, womenDiv);
+    })
+    .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
+}
 
-  async function addProduct(product) {
-    const res = await fetch(PRODUCTS_URLS[0], {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(product)
-    });
-    return res.json();
-  }
+// ==================== TRANG CHI TIẾT ====================
+const productDetailDiv = document.getElementById('detail-product');
+if (productDetailDiv) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const id = urlParams.get('id');
 
-  async function updateProduct(id, product) {
-    const res = await fetch(`${PRODUCTS_URLS[0]}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(product)
-    });
-    return res.json();
-  }
-
-  async function deleteProduct(id) {
-    const res = await fetch(`${PRODUCTS_URLS[0]}/${id}`, {
-      method: 'DELETE'
-    });
-    return res.json();
-  }
-
-  async function renderAdminProducts() {
-    try {
-      const res = await fetch(PRODUCTS_URLS[0]);
-      const products = await res.json();
-      adminTable.innerHTML = products.map(p => `
-        <tr>
-          <td>${p.id}</td>
-          <td>${p.name}</td>
-          <td>${Number(p.price).toLocaleString('vi-VN')} đ</td>
-          <td><img src="${p.image}" style="height:50px"></td>
-          <td>${p.category}</td>
-          <td>${p.hot ? '✅' : '❌'}</td>
-          <td style="max-width:200px;">${p.description}</td>
-          <td>
-            <button class="edit-product" data-id="${p.id}" title="Sửa">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="delete-product" data-id="${p.id}" title="Xóa">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        </tr>
-      `).join('');
-      addEventListenersForAdminActions(products);
-    } catch (err) {
-      console.error("❌ Lỗi tải danh sách sản phẩm:", err);
-    }
-  }
-
-  function addEventListenersForAdminActions(products) {
-    document.querySelectorAll('.edit-product').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.target.closest('button').getAttribute('data-id');
-        const product = products.find(p => p.id == id);
-        fillAdminFormWithProductData(product);
-        showUpdateForm(product);
+  if (id) {
+    fetchProductById(id)
+      .then(data => {
+        if (!data) throw new Error("Không tìm thấy sản phẩm");
+        const product = new Product(
+          data.id, data.name, data.price, data.image, data.category, data.hot, data.description
+        );
+        productDetailDiv.innerHTML = product.renderDetail();
+      })
+      .catch(err => {
+        productDetailDiv.innerHTML = `<p style="color:red;">${err.message || 'Lỗi tải sản phẩm'}</p>`;
       });
-    });
-
-    document.querySelectorAll('.delete-product').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.target.closest('button').getAttribute('data-id');
-        deleteProduct(id)
-          .then(() => {
-            alert("✅ Xóa sản phẩm thành công!");
-            renderAdminProducts();
-          })
-          .catch(() => alert("❌ Lỗi xóa sản phẩm"));
-      });
-    });
+  } else {
+    productDetailDiv.innerHTML = `<p style="color:red;">❌ Không có ID sản phẩm</p>`;
   }
+}
 
-  function fillAdminFormWithProductData(product) {
-    adminName.value = product.name;
-    adminPrice.value = product.price;
-    adminImage.value = product.image;
-    adminCategory.value = product.category;
-    adminHot.checked = product.hot;
-    adminDescription.value = product.description;
-    document.getElementById('product-id').value = product.id;
-  }
+// ==================== KHỞI TẠO TRANG ====================
+createHeader();
+createFooter();
+updateCartCount();
 
-  function showUpdateForm(product) {
-    document.getElementById('save-btn').style.display = 'none';
-    document.getElementById('update-btn').style.display = 'inline-block';
-    productModal.style.display = 'block';
-  }
-
-  if (openModalBtn) {
-    openModalBtn.addEventListener('click', () => {
-      productModal.style.display = 'block';
-      adminForm.reset();
-      document.getElementById('product-id').value = '';
-      document.getElementById('save-btn').style.display = 'inline-block';
-      document.getElementById('update-btn').style.display = 'none';
-    });
-  }
-
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', () => {
-      productModal.style.display = 'none';
-    });
-  }
-
-  adminForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    const id = document.getElementById('product-id').value;
-    const product = {
-      name: adminName.value,
-      price: adminPrice.value,
-      image: adminImage.value,
-      category: adminCategory.value,
-      hot: adminHot.checked,
-      description: adminDescription.value
-    };
-
-    if (id) {
-      updateProduct(id, product)
-        .then(() => {
-          alert("✅ Sửa sản phẩm thành công!");
-          renderAdminProducts();
-          productModal.style.display = 'none';
-        })
-        .catch(err => alert("❌ Lỗi cập nhật sản phẩm"));
-    } else {
-      addProduct(product)
-        .then(() => {
-          alert("✅ Thêm sản phẩm thành công!");
-          renderAdminProducts();
-          productModal.style.display = 'none';
-        })
-        .catch(err => alert("❌ Lỗi thêm sản phẩm"));
-    }
-  });
-
-  renderAdminProducts();
-});
+// Gọi render giỏ khi ở cart.html (không ảnh hưởng trang khác)
+renderCartPage();
