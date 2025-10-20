@@ -1,18 +1,9 @@
 // ==================== CẤU HÌNH API TƯƠNG THÍCH LOCAL / GITHUB ====================
-// Nhận biết khi chạy trên GitHub Pages (domain *.github.io)
 const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
-
-// Tên owner & repo của bạn
 const OWNER = 'nguyenthanhloi100906-web';
-const REPO = 'fontend';   // repo FE đang hiển thị web
-const DB_REPO = 'dbjson';    // repo chứa db.json
+const REPO = 'fontend';  
+const DB_REPO = 'dbjson';    
 
-// Khi chạy online (GitHub Pages):
-// 1) Thử file tĩnh trong chính repo FE
-// 2) Thử db.json từ repo dbjson trên GitHub Pages
-// 3) Fallback CDN jsDelivr của repo dbjson
-// 4) Thử lại đường dẫn tương đối
-// Khi chạy local: dùng json-server
 const PRODUCTS_URLS = IS_GITHUB_PAGES
   ? [
       `https://${OWNER}.github.io/${REPO}/data/products.json?v=${Date.now()}`,
@@ -20,7 +11,7 @@ const PRODUCTS_URLS = IS_GITHUB_PAGES
       `https://cdn.jsdelivr.net/gh/${OWNER}/${DB_REPO}/db.json?v=${Date.now()}`,
       `./data/products.json?v=${Date.now()}`
     ]
-  : ['http://localhost:3000/products'];
+  : ['http://localhost:3000/products'];  
 
 // ==================== CLASS SẢN PHẨM ====================
 class Product {
@@ -170,12 +161,11 @@ function updateCartCount() {
 }
 
 // ==================== FETCH DỮ LIỆU ====================
-
-// Helper: tải toàn bộ danh sách sản phẩm
 async function fetchProducts() {
   try {
-    const json = await fetchFirst(PRODUCTS_URLS);
-    return normalizeProducts(json);
+    const response = await fetch(PRODUCTS_URLS[0]);
+    const json = await response.json();
+    return json;
   } catch (err) {
     console.error('❌ fetchProducts lỗi:', err);
     throw err;
@@ -207,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const openModalBtn = document.getElementById('open-add-product-modal');
   const closeModalBtn = document.getElementById('close-product-modal');
 
-  // Thêm sản phẩm
   async function addProduct(product) {
     const res = await fetch(PRODUCTS_URLS[0], {
       method: 'POST',
@@ -217,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return res.json();
   }
 
-  // Sửa sản phẩm
   async function updateProduct(id, product) {
     const res = await fetch(`${PRODUCTS_URLS[0]}/${id}`, {
       method: 'PUT',
@@ -227,7 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return res.json();
   }
 
-  // Xóa sản phẩm
   async function deleteProduct(id) {
     const res = await fetch(`${PRODUCTS_URLS[0]}/${id}`, {
       method: 'DELETE'
@@ -235,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return res.json();
   }
 
-  // Hiển thị danh sách sản phẩm trong bảng admin
   async function renderAdminProducts() {
     try {
       const res = await fetch(PRODUCTS_URLS[0]);
@@ -259,45 +245,51 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
         </tr>
       `).join('');
-
-      // Cập nhật các sự kiện click cho nút sửa và xóa
-      document.querySelectorAll('.edit-product').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const id = e.target.closest('button').getAttribute('data-id');
-          const product = products.find(p => p.id == id);
-          // Điền dữ liệu sản phẩm vào form sửa
-          adminName.value = product.name;
-          adminPrice.value = product.price;
-          adminImage.value = product.image;
-          adminCategory.value = product.category;
-          adminHot.checked = product.hot;
-          adminDescription.value = product.description;
-          document.getElementById('product-id').value = product.id;
-          document.getElementById('save-btn').style.display = 'none';
-          document.getElementById('update-btn').style.display = 'inline-block';
-          productModal.style.display = 'block';
-        });
-      });
-
-      document.querySelectorAll('.delete-product').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const id = e.target.closest('button').getAttribute('data-id');
-          if (confirm("Bạn có chắc muốn xóa sản phẩm này?")) {
-            deleteProduct(id)
-              .then(() => {
-                alert("✅ Xóa sản phẩm thành công!");
-                renderAdminProducts(); // Cập nhật lại danh sách sản phẩm
-              })
-              .catch(() => alert("❌ Lỗi xóa sản phẩm"));
-          }
-        });
-      });
+      addEventListenersForAdminActions(products);
     } catch (err) {
       console.error("❌ Lỗi tải danh sách sản phẩm:", err);
     }
   }
 
-  // Mở modal thêm sản phẩm
+  function addEventListenersForAdminActions(products) {
+    document.querySelectorAll('.edit-product').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('button').getAttribute('data-id');
+        const product = products.find(p => p.id == id);
+        fillAdminFormWithProductData(product);
+        showUpdateForm(product);
+      });
+    });
+
+    document.querySelectorAll('.delete-product').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('button').getAttribute('data-id');
+        deleteProduct(id)
+          .then(() => {
+            alert("✅ Xóa sản phẩm thành công!");
+            renderAdminProducts();
+          })
+          .catch(() => alert("❌ Lỗi xóa sản phẩm"));
+      });
+    });
+  }
+
+  function fillAdminFormWithProductData(product) {
+    adminName.value = product.name;
+    adminPrice.value = product.price;
+    adminImage.value = product.image;
+    adminCategory.value = product.category;
+    adminHot.checked = product.hot;
+    adminDescription.value = product.description;
+    document.getElementById('product-id').value = product.id;
+  }
+
+  function showUpdateForm(product) {
+    document.getElementById('save-btn').style.display = 'none';
+    document.getElementById('update-btn').style.display = 'inline-block';
+    productModal.style.display = 'block';
+  }
+
   if (openModalBtn) {
     openModalBtn.addEventListener('click', () => {
       productModal.style.display = 'block';
@@ -308,14 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Đóng modal
   if (closeModalBtn) {
     closeModalBtn.addEventListener('click', () => {
       productModal.style.display = 'none';
     });
   }
 
-  // Gửi form thêm/sửa sản phẩm
   adminForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
