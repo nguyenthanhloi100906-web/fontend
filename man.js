@@ -1,31 +1,16 @@
 // ==================== CẤU HÌNH API TƯƠNG THÍCH LOCAL / GITHUB ====================
-// Nếu chạy trên GitHub Pages (domain *.github.io) thì dùng file tĩnh ./data/products.json
+// Nếu chạy trên GitHub Pages (domain *.github.io) thì dùng file tĩnh từ GitHub
 const IS_GITHUB_PAGES = location.hostname.endsWith('github.io');
-const OWNER = 'nguyenthanhloi100906-web'; // Tên user GitHub của bạn
-const REPO = 'fontend';  // Tên repo của bạn chứa dữ liệu sản phẩm
-const DB_REPO = 'dbjson'; // Repo chứa db.json
-
-// URL để lấy dữ liệu sản phẩm từ GitHub hoặc từ JSON server khi chạy trên local
-const PRODUCTS_URLS = IS_GITHUB_PAGES
-  ? [
-      `https://${OWNER}.github.io/${REPO}/data/products.json?v=${Date.now()}`,  // Lấy file JSON từ GitHub Pages
-      `https://${OWNER}.github.io/${DB_REPO}/db.json?v=${Date.now()}`,           // Lấy file DB từ GitHub Pages
-      `https://cdn.jsdelivr.net/gh/${OWNER}/${DB_REPO}/db.json?v=${Date.now()}`, // Sử dụng CDN để lấy DB từ GitHub
-      `./data/products.json?v=${Date.now()}`                                     // Dữ liệu file tĩnh trong repo
-    ]
-  : ['http://localhost:3000/products'];  // URL khi chạy trên local với json-server
+const PRODUCTS_URL = IS_GITHUB_PAGES
+  ? 'https://raw.githubusercontent.com/nguyenthanhloi100906-web/dbjson/main/db.json'  // URL raw từ GitHub Repo
+  : 'https://raw.githubusercontent.com/nguyenthanhloi100906-web/dbjson/main/db.json'; // API GitHub cho local development
 
 // Helper: tải toàn bộ danh sách sản phẩm
 function fetchProducts() {
-  return fetch(PRODUCTS_URLS[0])  // Lấy dữ liệu từ GitHub hoặc localhost
-    .then(res => {
-      if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
-      return res.json();
-    })
-    .catch(error => {
-      console.error('Lỗi khi lấy dữ liệu sản phẩm:', error);
-      return [];
-    });
+  return fetch(PRODUCTS_URL).then(res => {
+    if (!res.ok) throw new Error('Không thể tải danh sách sản phẩm');
+    return res.json();
+  });
 }
 
 // Helper: lấy 1 sản phẩm theo id (client-filter khi dùng file tĩnh)
@@ -33,8 +18,8 @@ function fetchProductById(id) {
   if (IS_GITHUB_PAGES) {
     return fetchProducts().then(list => list.find(p => String(p.id) === String(id)));
   }
-  // Local json-server có endpoint /products/:id
-  return fetch(`${PRODUCTS_URLS[0]}/${id}`).then(res => {
+  // Local json-server có endpoint /products/:id, nhưng ở đây dùng GitHub API
+  return fetch(`${PRODUCTS_URL}`).then(res => {
     if (!res.ok) throw new Error('Không tìm thấy sản phẩm');
     return res.json();
   });
@@ -187,6 +172,24 @@ function updateCartCount() {
   if (badge) badge.textContent = cart.getTotalQuantity();
 }
 
+// ==================== THÊM VÀO GIỎ HÀNG ====================
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('add-to-cart')) {
+    const id = e.target.getAttribute('data-id');
+    fetchProductById(id)
+      .then(data => {
+        if (!data) throw new Error('Không tìm thấy sản phẩm');
+        const product = new Product(
+          data.id, data.name, data.price, data.image, data.category, data.hot, data.description
+        );
+        cart.addItem(product);
+        updateCartCount();
+        alert("✅ Đã thêm vào giỏ hàng!");
+      })
+      .catch(() => alert("❌ Lỗi thêm giỏ hàng"));
+  }
+});
+
 // ==================== RENDER DANH SÁCH SẢN PHẨM ====================
 function renderProduct(array, theDiv) {
   let html = "";
@@ -217,6 +220,42 @@ if (hotDiv) {
     .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
 }
 
+// ==================== TRANG SẢN PHẨM ====================
+const productAll = document.getElementById('all-product');
+const searchInput = document.getElementById('search-input');
+const sortPrice = document.getElementById('sort-price');
+let allProductsData = [];
+
+if (productAll) {
+  fetchProducts()
+    .then(data => {
+      allProductsData = data;
+      renderProduct(data, productAll);
+    })
+    .catch(err => console.error('❌ Lỗi load sản phẩm:', err));
+
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      const keyword = e.target.value.toLowerCase();
+      const filteredProducts = allProductsData.filter(
+        p => p.name.toLowerCase().includes(keyword)
+      );
+      renderProduct(filteredProducts, productAll);
+    });
+  }
+
+  if (sortPrice) {
+    sortPrice.addEventListener('change', (e) => {
+      if (e.target.value === "asc") {
+        allProductsData.sort((a, b) => a.price - b.price);
+      } else if (e.target.value === "desc") {
+        allProductsData.sort((a, b) => b.price - a.price);
+      }
+      renderProduct(allProductsData, productAll);
+    });
+  }
+}
+
 // ==================== TRANG CHI TIẾT ====================
 const productDetailDiv = document.getElementById('detail-product');
 if (productDetailDiv) {
@@ -244,6 +283,5 @@ if (productDetailDiv) {
 createHeader();
 createFooter();
 updateCartCount();
-
 // Gọi render giỏ khi ở cart.html (không ảnh hưởng trang khác)
 renderCartPage();
